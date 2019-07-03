@@ -1,0 +1,108 @@
+version: 2
+references:
+  workspace_root: &workspace_root /tmp/workspace
+  attach_workspace: &attach_workspace
+    attach_workspace:
+      at: *workspace_root
+jobs:
+  build:
+    machine:
+      enabled: true
+    steps:
+      - checkout
+      - run:
+          name: Build tags
+          command: |
+            echo 'export TAG=1.0.$CIRCLE_BUILD_NUM-$(echo $CIRCLE_BRANCH | tr "/" "-")' >> $BASH_ENV
+            echo 'export VERSION=1.0.$CIRCLE_BUILD_NUM' >> $BASH_ENV
+            echo 'export BRANCH=$(echo $CIRCLE_BRANCH | tr "/" "-")' >> $BASH_ENV
+      - run:
+          name: Save tags and environment to workspace
+          command: |
+            mkdir -p /tmp/workspace
+            echo "$TAG" > /tmp/workspace/tag
+            echo "$VERSION" > /tmp/workspace/version
+            echo "$BRANCH" > /tmp/workspace/branch
+            case $CIRCLE_BRANCH in
+              "master") ENVIRONMENT="staging";;
+            esac
+            echo "$ENVIRONMENT" > /tmp/workspace/environment
+            echo "export ENVIRONMENT=$ENVIRONMENT" >> $BASH_ENV
+      - run:
+          name: Export environment variables
+          command: |
+            echo 'export ECR_REPO_PREFIX=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com' >> $BASH_ENV
+            echo 'export IMAGE=$ECR_REPO_PREFIX/$PROJECT/$SERVICE' >> $BASH_ENV
+      - add_ssh_keys:
+          fingerprints:
+            - "b4:7f:c2:3f:d3:0d:bf:06:f7:60:17:af:b5:6e:89:62"
+      - run:
+          name: Build docker container and push to ECR
+          command: |
+            eval $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+            docker build --build-arg CLIENT_ID=$CLIENT_ID --build-arg  CLIENT_SECRET=$CLIENT_SECRET --build-arg BRANCH=$CIRCLE_BRANCH --compress -t $IMAGE:$TAG .
+            docker tag $IMAGE:$TAG $IMAGE:$VERSION
+            docker tag $IMAGE:$TAG $IMAGE:$BRANCH
+            docker push $IMAGE:$TAG
+            docker push $IMAGE:$VERSION
+            docker push $IMAGE:$BRANCH
+            if [ "$CIRCLE_BRANCH" == "master" ]; then
+                docker tag $IMAGE:$TAG $IMAGE:latest
+                docker push $IMAGE:latest
+            fi
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - tag
+            - environment
+  deployment:
+    machine:
+      enabled: true
+    steps:
+      - checkout
+      - *attach_workspace
+      - run:
+          name: Export environment variables
+          command: |
+            echo 'export ENVIRONMENT=$(cat /tmp/workspace/environment)' >> $BASH_ENV
+      - run:
+          name: Install AWS CLI
+          command: |
+            pip install awscli
+      - run:
+          name: Update ECS with new task definition
+          command: |
+            echo "Updating ECS services"
+            getCluster () {
+                unset CLUSTER
+                while read -r cluster; do
+                    CHECK=$(aws ecs describe-services --services $PROJECT-$ENVIRONMENT-$1 --cluster $cluster | jq -r '.services[].clusterArn')
+                    if [ ! -z $CHECK ]; then
+                        CLUSTER=$cluster
+                        break
+                    fi;
+                done <<< "$(aws ecs list-clusters | jq -r '.clusterArns[]' | grep "cluster/$PROJECT-$ENVIRONMENT")"
+                if [ -z "$CLUSTER" ]; then
+                    echo "No cluster cound be found, exiting..."
+                    exit 1
+                fi
+                echo $CLUSTER
+            }
+            CLUSTER=$(getCluster $SERVICE)
+            SUCCESS_UPDATE=$(aws ecs update-service --force-new-deployment --service $PROJECT-$ENVIRONMENT-$SERVICE --task-definition $PROJECT-$ENVIRONMENT-$SERVICE --cluster $CLUSTER)
+workflows:
+  version: 2
+  test-build-deploy:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - master
+      - deployment:
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - build
