@@ -1,8 +1,5 @@
 FROM node:10-alpine
 
-ARG CLIENT_SECRET
-ARG CLIENT_ID
-
 WORKDIR /app
 
 COPY . /app
@@ -12,8 +9,7 @@ RUN npm install
 
 EXPOSE 8080
 
-ENV CLIENT_ID ${CLIENT_ID}
-ENV CLIENT_SECRET ${CLIENT_SECRET}
-ENV PORT 8080
+# Entrypoint permissions
+RUN chmod +x /app/docker-entrypoint.sh
 
 CMD ["npm", "start"]
