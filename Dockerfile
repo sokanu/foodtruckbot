@@ -1,0 +1,15 @@
+FROM node:10-alpine
+
+ARG CLIENT_SECRET
+ARG CLIENT_ID
+
+WORKDIR /app
+
+COPY . /app
+COPY ./package*.json /app/
+
+RUN npm install
+
+EXPOSE 8080
+
+RUN CLIENT_ID=${CLIENT_ID} CLIENT_SECRET=${CLIENT_SECRET} PORT=8080 npm start
