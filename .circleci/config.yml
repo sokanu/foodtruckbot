@@ -40,7 +40,7 @@ jobs:
           name: Build docker container and push to ECR
           command: |
             eval $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
-            docker build --build-arg CLIENT_ID=$CLIENT_ID --build-arg  CLIENT_SECRET=$CLIENT_SECRET --build-arg BRANCH=$CIRCLE_BRANCH --compress -t $IMAGE:$TAG .
+            docker build --build-arg CLIENT_ID=$CLIENT_ID --build-arg  CLIENT_SECRET=$CLIENT_SECRET --compress -t $IMAGE:$TAG .
             docker tag $IMAGE:$TAG $IMAGE:$VERSION
             docker tag $IMAGE:$TAG $IMAGE:$BRANCH
             docker push $IMAGE:$TAG
