@@ -33,9 +33,6 @@ jobs:
           command: |
             echo 'export ECR_REPO_PREFIX=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com' >> $BASH_ENV
             echo 'export IMAGE=$ECR_REPO_PREFIX/$PROJECT/$SERVICE' >> $BASH_ENV
-      - add_ssh_keys:
-          fingerprints:
-            - "b4:7f:c2:3f:d3:0d:bf:06:f7:60:17:af:b5:6e:89:62"
       - run:
           name: Build docker container and push to ECR
           command: |
