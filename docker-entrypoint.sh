@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Copy ENV from SSM to file.
 aws ssm get-parameters-by-path --path /$PROJECT/$ENVIRONMENT/$SERVICE --recursive --with-decryption | \
