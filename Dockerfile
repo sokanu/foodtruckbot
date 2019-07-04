@@ -1,4 +1,11 @@
-FROM node:10-alpine
+FROM node:10
+
+RUN apt-get update -y
+RUN apt-get install build-essential -y
+RUN apt-get install jq -y
+RUN apt-get install python-dev -y
+RUN apt-get install python-pip -y
+RUN pip2 install awscli
 
 WORKDIR /app
 
