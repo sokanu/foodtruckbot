@@ -7,6 +7,9 @@
     "type": "git",
     "url": "git+https://github.com/DEGoodmanWilson/easy-peasy-bot-app.git"
   },
+  "scripts": {
+    "start": "node ."
+  },
   "keywords": [
     "slack",
     "bot"
